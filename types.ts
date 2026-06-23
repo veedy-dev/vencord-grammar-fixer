@@ -10,6 +10,7 @@ export const MAX_GRAMMAR_FIXER_MODEL_LENGTH = 200;
 export const MAX_GRAMMAR_FIXER_ENDPOINT_LENGTH = 2048;
 export const MAX_GRAMMAR_FIXER_RESPONSE_PATH_LENGTH = 200;
 export const MAX_GRAMMAR_FIXER_API_KEY_LENGTH = 4096;
+export const MAX_GRAMMAR_FIXER_MODEL_LIST_BYTES = 5_000_000;
 export const GRAMMAR_FIXER_TIMEOUT_MS = 30000;
 
 export type GrammarFixerProvider = "gemini" | "openai" | "local" | "custom";

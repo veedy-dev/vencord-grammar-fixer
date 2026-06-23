@@ -8,7 +8,7 @@ import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
 import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { definePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType, PluginNative } from "@utils/types";
-import { Button, ChannelStore, DraftStore, DraftType, Forms, Menu, TextInput, Toasts, useState, useStateFromStores } from "@webpack/common";
+import { Button, ChannelStore, DraftStore, DraftType, Forms, Menu, SearchableSelect, TextInput, Toasts, useState, useStateFromStores } from "@webpack/common";
 
 import { openGrammarFixerModal } from "./GrammarFixerModal";
 import { buildGrammarFixerRequest, type GrammarFixerProviderSettings, normalizeGrammarFixerResponse } from "./providers";
@@ -89,14 +89,19 @@ function ModelSetting({ setValue }: { setValue(value: string): void; }) {
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <SettingsTextInput title="Model (Required)" note="Enter a model manually or fetch available models for Gemini, OpenAI-compatible, and Local providers." value={model} setValue={setValue} placeholder="Model name" />
+            <SettingsTextInput title="Model (Required)" note="Type a model name, or fetch the provider's models and pick from the searchable list." value={model} setValue={setValue} placeholder="Model name" />
             <Button disabled={!canFetch || isLoading || (provider === "local" && !endpoint.trim())} onClick={fetchModels}>{isLoading ? "Fetching..." : "Fetch models"}</Button>
             {provider === "custom" && <Forms.FormText>Custom model list is manual.</Forms.FormText>}
             {provider === "local" && !endpoint.trim() && <Forms.FormText>Set a required loopback endpoint before fetching local models.</Forms.FormText>}
             {models.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {models.map(modelId => <Button key={modelId} size="sm" onClick={() => setValue(modelId)}>{modelId}</Button>)}
-                </div>
+                <SearchableSelect
+                    options={models.map(modelId => ({ label: modelId, value: modelId }))}
+                    value={models.includes(model) ? model : undefined}
+                    placeholder={`Search ${models.length} models...`}
+                    maxVisibleItems={6}
+                    closeOnSelect={true}
+                    onChange={value => setValue(value)}
+                />
             )}
         </div>
     );

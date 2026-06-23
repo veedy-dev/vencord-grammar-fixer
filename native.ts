@@ -6,7 +6,7 @@
 
 import { IpcMainInvokeEvent } from "electron";
 
-import { GRAMMAR_FIXER_TIMEOUT_MS, GrammarFixerAuthKind, GrammarFixerModelListRequest, GrammarFixerModelListResponse, GrammarFixerNativeRequest, GrammarFixerNativeResponse, GrammarFixerPromptKind, GrammarFixerProvider, MAX_GRAMMAR_FIXER_API_KEY_LENGTH, MAX_GRAMMAR_FIXER_ENDPOINT_LENGTH, MAX_GRAMMAR_FIXER_MODEL_LENGTH, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH, MAX_GRAMMAR_FIXER_RESPONSE_PATH_LENGTH, MAX_GRAMMAR_FIXER_TEXT_LENGTH } from "./types";
+import { GRAMMAR_FIXER_TIMEOUT_MS, GrammarFixerAuthKind, GrammarFixerModelListRequest, GrammarFixerModelListResponse, GrammarFixerNativeRequest, GrammarFixerNativeResponse, GrammarFixerPromptKind, GrammarFixerProvider, MAX_GRAMMAR_FIXER_API_KEY_LENGTH, MAX_GRAMMAR_FIXER_ENDPOINT_LENGTH, MAX_GRAMMAR_FIXER_MODEL_LENGTH, MAX_GRAMMAR_FIXER_MODEL_LIST_BYTES, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH, MAX_GRAMMAR_FIXER_RESPONSE_PATH_LENGTH, MAX_GRAMMAR_FIXER_TEXT_LENGTH } from "./types";
 
 const defaultEndpoints = {
     gemini: "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
@@ -56,8 +56,7 @@ function getPathValue(value: unknown, path: string) {
     }, value);
 }
 
-async function readLimitedResponse(response: Response) {
-    const limit = MAX_GRAMMAR_FIXER_RESPONSE_LENGTH * 4;
+async function readLimitedResponse(response: Response, limit: number) {
     if (!response.body?.getReader) throw new Error("Provider response stream unavailable");
 
     const reader = response.body.getReader();
@@ -206,7 +205,7 @@ export async function makeGrammarFixerRequest(_: IpcMainInvokeEvent, request: Gr
             signal: controller.signal
         });
 
-        const data = await readLimitedResponse(response);
+        const data = await readLimitedResponse(response, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH * 4);
 
         const json = JSON.parse(data);
         const text = getPathValue(json, prepared.responsePath);
@@ -234,7 +233,7 @@ export async function listGrammarFixerModels(_: IpcMainInvokeEvent, request: Gra
         if (validRequest.provider === "openai" && validRequest.apiKey) headers.Authorization = `Bearer ${validRequest.apiKey}`;
 
         const response = await fetch(url, { method: "GET", headers, redirect: "error", signal: controller.signal });
-        const data = await readLimitedResponse(response);
+        const data = await readLimitedResponse(response, MAX_GRAMMAR_FIXER_MODEL_LIST_BYTES);
         const models = normalizeModelList(validRequest.provider, JSON.parse(data));
 
         return { ok: response.ok, status: response.status, models, error: response.ok ? undefined : "Provider returned an error" };
