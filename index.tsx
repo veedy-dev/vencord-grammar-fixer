@@ -7,7 +7,6 @@
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
 import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { definePluginSettings } from "@api/Settings";
-import { Devs } from "@utils/constants";
 import definePlugin, { OptionType, PluginNative } from "@utils/types";
 import { Button, ChannelStore, DraftStore, DraftType, Forms, Menu, TextInput, Toasts, useState, useStateFromStores } from "@webpack/common";
 
@@ -259,7 +258,7 @@ const messageContextMenuPatch: NavContextMenuPatchCallback = (children, { messag
 export default definePlugin({
     name: "GrammarFixer",
     description: "Private desktop-only grammar fixing scaffold with strict provider boundaries.",
-    authors: [Devs.Ven],
+    authors: [{ name: "veedy", id: 337585778140119041n }],
     tags: ["Chat", "Utility"],
     settings,
     enabledByDefault: false,
