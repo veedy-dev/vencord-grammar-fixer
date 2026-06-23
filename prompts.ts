@@ -20,12 +20,17 @@ const styleInstructions: Record<GrammarFixerWritingStyle, string> = {
     formal: "Style: Use a polished, formal tone."
 };
 
+const naturalPunctuationInstruction = "Avoid AI-looking punctuation. Do not use em dashes or semicolons. Prefer commas, periods, or short separate sentences.";
+
 export function clampPromptText(text: string) {
     return text.slice(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH);
 }
 
 export function clampResponseText(text: string) {
-    return text.slice(0, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH);
+    return text
+        .replace(/\s*—\s*/g, ", ")
+        .replace(/;\s*/g, ". ")
+        .slice(0, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH);
 }
 
 export function sanitizePromptText(text: string) {
@@ -41,7 +46,7 @@ export function sanitizePromptText(text: string) {
 export function buildGrammarFixerPrompt(kind: GrammarFixerPromptKind, text: string, context?: string, style: GrammarFixerWritingStyle = "closest") {
     const sanitizedText = sanitizePromptText(text);
     const sanitizedContext = context ? sanitizePromptText(context) : "";
-    const instruction = `${instructions[kind]}\n${styleInstructions[style] ?? styleInstructions.closest}`;
+    const instruction = `${instructions[kind]}\n${styleInstructions[style] ?? styleInstructions.closest}\n${naturalPunctuationInstruction}`;
     const textPrefix = `${instruction}\n\nText:\n`;
     const textBudget = Math.max(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH - textPrefix.length);
     const safeText = sanitizedText.slice(0, textBudget);
