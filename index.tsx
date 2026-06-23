@@ -9,8 +9,9 @@ import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/Co
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType, PluginNative } from "@utils/types";
-import { ChannelStore, DraftStore, DraftType, Forms, Menu, TextInput, Toasts, useStateFromStores } from "@webpack/common";
+import { ChannelStore, ConfirmModal, DraftStore, DraftType, Forms, Menu, openModal, TextInput, Toasts, useStateFromStores } from "@webpack/common";
 
+import { saveChannelDraft } from "./draft";
 import { openGrammarFixerModal } from "./GrammarFixerModal";
 import { buildGrammarFixerRequest, type GrammarFixerProviderSettings, normalizeGrammarFixerResponse } from "./providers";
 import { openReplySuggestionModal } from "./ReplySuggestionModal";
@@ -125,6 +126,46 @@ function GrammarFixerIcon({ width = 20, height = 20, ...props }: Record<string, 
     return <svg {...props} width={width} height={height} viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v2H4V4Zm0 4h10v2H4V8Zm0 4h16v2H4v-2Zm0 4h10v2H4v-2Zm13.7-6.3 1.4 1.4-4.6 4.6-2.1-2.1 1.4-1.4.7.7 3.2-3.2Z" /></svg>;
 }
 
+function replaceDraft(channelId: string, replacement: string) {
+    saveChannelDraft(channelId, replacement);
+    Toasts.show({ id: Toasts.genId(), message: "Draft replaced.", type: Toasts.Type.SUCCESS });
+}
+
+function showDirectReplaceConfirmation(channelId: string, replacement: string) {
+    openModal(props => (
+        <ConfirmModal
+            {...props}
+            title="Replace changed draft?"
+            subtitle="Your draft changed while GrammarFixer was running. Replace the current draft with the fixed result?"
+            confirmText="Replace Draft"
+            cancelText="Keep Current Draft"
+            variant="primary"
+            onConfirm={() => replaceDraft(channelId, replacement)}
+        />
+    ));
+}
+
+async function directFixDraft(channelId: string, initialDraft: string) {
+    if (IS_WEB || !initialDraft.trim()) return;
+
+    Toasts.show({ id: Toasts.genId(), message: "GrammarFixer is fixing your draft...", type: Toasts.Type.MESSAGE });
+
+    try {
+        const fixed = await requestGrammarFix(initialDraft, undefined, "fix");
+        if (!fixed) return;
+
+        const currentDraft = DraftStore.getDraft(channelId, DraftType.ChannelMessage) ?? "";
+        if (currentDraft === initialDraft) {
+            replaceDraft(channelId, fixed);
+            return;
+        }
+
+        showDirectReplaceConfirmation(channelId, fixed);
+    } catch (error) {
+        Toasts.show({ id: Toasts.genId(), message: error instanceof Error ? error.message : "GrammarFixer failed", type: Toasts.Type.FAILURE });
+    }
+}
+
 const GrammarFixerChatBarButton: ChatBarButtonFactory = ({ isAnyChat, channel: { id: channelId }, isEmpty }) => {
     const draft = useStateFromStores([DraftStore], () => DraftStore.getDraft(channelId, DraftType.ChannelMessage) ?? "");
 
@@ -132,9 +173,15 @@ const GrammarFixerChatBarButton: ChatBarButtonFactory = ({ isAnyChat, channel: {
 
     return (
         <ChatBarButton
-            tooltip="Fix Grammar"
-            onClick={() => openGrammarFixerModal(channelId, draft, requestGrammarFix)}
-            buttonProps={{ "aria-haspopup": "dialog" }}
+            tooltip="Fix Grammar (right-click for review)"
+            onClick={() => void directFixDraft(channelId, draft)}
+            onContextMenu={event => {
+                event.preventDefault();
+                openGrammarFixerModal(channelId, draft, requestGrammarFix);
+            }}
+            buttonProps={{
+                "aria-haspopup": "dialog"
+            }}
         >
             <GrammarFixerIcon />
         </ChatBarButton>
