@@ -105,7 +105,7 @@ function ModelSetting({ setValue }: { setValue(value: string): void; }) {
 const settings = definePluginSettings({
     provider: {
         type: OptionType.SELECT,
-        description: IS_WEB ? "Provider (desktop only)" : "Provider",
+        description: IS_WEB ? "AI service to use (desktop only)" : "AI service used for grammar fixes and reply suggestions",
         options: [
             { label: "Gemini", value: "gemini", default: true },
             { label: "OpenAI-compatible", value: "openai" },
@@ -262,20 +262,6 @@ export default definePlugin({
     tags: ["Chat", "Utility"],
     settings,
     enabledByDefault: false,
-
-    settingsAboutComponent: () => (
-        <>
-            <Forms.FormText>
-                GrammarFixer talks to your own AI provider, so you need an API key for the provider you pick. For Gemini, create a free key at Google AI Studio. For OpenAI-compatible providers, use that service's API key. Local providers usually need no key.
-            </Forms.FormText>
-            <Forms.FormText style={{ marginTop: 8 }}>
-                Your key is saved only on this device, inside Vencord settings. The field is masked on screen, but it is stored as plaintext, so avoid using this on a shared or untrusted computer.
-            </Forms.FormText>
-            <Forms.FormText style={{ marginTop: 8 }}>
-                Your text is sent to the configured provider only when you click an action button in a GrammarFixer popup. Discord mentions and internal IDs (such as user, channel, role, and message IDs) are stripped out first, so they are never sent to the AI provider.
-            </Forms.FormText>
-        </>
-    ),
 
     contextMenus: {
         "message": messageContextMenuPatch

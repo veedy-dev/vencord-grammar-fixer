@@ -1,6 +1,8 @@
 # Vencord Grammar Fixer
 
-Private desktop-only Vencord userplugin for manual AI grammar fixes and reply suggestions.
+Unofficial desktop-only Vencord userplugin for manual AI grammar fixes and reply suggestions. Bring your own AI provider key.
+
+Not affiliated with or endorsed by Vencord. Userplugins require a source/development build of Vencord.
 
 ## Features
 
@@ -46,7 +48,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 From your Vencord checkout:
 
 ```bash
-git clone git@github.com:veedy-dev/vencord-grammar-fixer.git src/userplugins/grammarFixer
+git clone https://github.com/veedy-dev/vencord-grammar-fixer.git src/userplugins/grammarFixer
 corepack pnpm build
 ```
 
@@ -71,7 +73,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -VencordPath "D:\Projects
 
 - Provider and Writing Style are always shown. Writing Style is saved in Vencord settings and reused for grammar fixes and reply suggestions.
 - Model is required. You can type it manually or fetch models for Gemini, OpenAI-compatible, and Local providers.
-- Gemini uses the fixed Gemini API endpoint. Provider API Key is required and visually masked, but stored plaintext in Vencord settings.
+- Gemini uses the fixed Gemini API endpoint. Provider API Key is required and visually masked, but stored plaintext in Vencord settings. Get a free key from Google AI Studio.
 - OpenAI-compatible uses the default OpenAI endpoint when Endpoint is blank. Provider API Key is required for OpenAI and optional for compatible endpoints that allow no auth.
 - Local requires a loopback Endpoint and hides Provider API Key.
 - Custom requires Endpoint and Custom Response Text Path. Custom Auth Kind controls whether Custom API Key is shown and required. Custom model lists are manual.
