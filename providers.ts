@@ -21,13 +21,14 @@ export interface GrammarFixerProviderSettings {
 export function buildGrammarFixerRequest(settings: GrammarFixerProviderSettings, promptKind: GrammarFixerPromptKind, text: string, context?: string): GrammarFixerNativeRequest {
     const prompt = buildGrammarFixerPrompt(promptKind, text, context, settings.writingStyle).trim();
     const endpoint = settings.endpoint.trim();
+    const apiKey = settings.apiKey.trim();
 
     const request: GrammarFixerNativeRequest = {
         provider: settings.provider,
         model: settings.model.trim(),
         promptKind,
         text: prompt,
-        apiKey: settings.apiKey,
+        apiKey: settings.provider === "gemini" || settings.provider === "openai" ? apiKey : undefined,
         endpoint
     };
 
@@ -36,7 +37,7 @@ export function buildGrammarFixerRequest(settings: GrammarFixerProviderSettings,
             endpoint,
             auth: {
                 kind: settings.customAuthKind,
-                apiKey: settings.customApiKey
+                apiKey: settings.customAuthKind === "none" ? undefined : settings.customApiKey.trim()
             },
             responseTextPath: settings.customResponseTextPath.trim()
         };

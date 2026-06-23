@@ -8,6 +8,7 @@ Private desktop-only Vencord userplugin for manual AI grammar fixes and reply su
 - Right-click the chat-bar button to open the review modal before fixing.
 - Suggest replies from message popover or message context menu.
 - Choose writing style: Closest to Original, Clean & Natural, Casual & Friendly, Punchy & Direct, or Formal.
+- Fetch available models for Gemini, OpenAI-compatible, and Local providers, or enter a model manually.
 - Copy results or insert/replace the current draft manually.
 - Stale-draft protection before replacing or appending text.
 - Password-masked API key fields in settings.
@@ -29,6 +30,17 @@ src/userplugins/grammarFixer
 ```
 
 Then enable `GrammarFixer` in Vencord settings.
+
+## Settings
+
+- Provider and Writing Style are always shown. Writing Style is saved in Vencord settings and reused for grammar fixes and reply suggestions.
+- Model is required. You can type it manually or fetch models for Gemini, OpenAI-compatible, and Local providers.
+- Gemini uses the fixed Gemini API endpoint. Provider API Key is required and visually masked, but stored plaintext in Vencord settings.
+- OpenAI-compatible uses the default OpenAI endpoint when Endpoint is blank. Provider API Key is required for OpenAI and optional for compatible endpoints that allow no auth.
+- Local requires a loopback Endpoint and hides Provider API Key.
+- Custom requires Endpoint and Custom Response Text Path. Custom Auth Kind controls whether Custom API Key is shown and required. Custom model lists are manual.
+
+Model fetching uses provider-specific GET requests only. Gemini calls the fixed models endpoint, OpenAI-compatible derives a `/models` endpoint from the configured endpoint, Local does the same but only for loopback URLs, and Custom does not support automatic model listing.
 
 ## Privacy and safety
 

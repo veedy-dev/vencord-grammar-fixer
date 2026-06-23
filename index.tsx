@@ -9,18 +9,100 @@ import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/Co
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType, PluginNative } from "@utils/types";
-import { ChannelStore, ConfirmModal, DraftStore, DraftType, Forms, Menu, openModal, TextInput, Toasts, useStateFromStores } from "@webpack/common";
+import { Button, ChannelStore, ConfirmModal, DraftStore, DraftType, Forms, Menu, openModal, TextInput, Toasts, useState, useStateFromStores } from "@webpack/common";
 
 import { saveChannelDraft } from "./draft";
 import { openGrammarFixerModal } from "./GrammarFixerModal";
 import { buildGrammarFixerRequest, type GrammarFixerProviderSettings, normalizeGrammarFixerResponse } from "./providers";
 import { openReplySuggestionModal } from "./ReplySuggestionModal";
-import type { GrammarFixerPromptKind } from "./types";
+import type { GrammarFixerModelListRequest, GrammarFixerPromptKind, GrammarFixerProvider } from "./types";
 
 const Native = VencordNative.pluginHelpers.GrammarFixer as PluginNative<typeof import("./native")>;
 
 let requestId = 0;
 let requestInFlight = false;
+
+function isCustomProvider() {
+    return settings.store.provider === "custom";
+}
+
+function usesProviderApiKey() {
+    return settings.store.provider === "gemini" || settings.store.provider === "openai";
+}
+
+function usesEndpoint() {
+    return settings.store.provider !== "gemini";
+}
+
+function usesCustomApiKey() {
+    return settings.store.provider === "custom" && settings.store.customAuthKind !== "none";
+}
+
+function getEndpointLabel(provider: GrammarFixerProvider) {
+    if (provider === "openai") return "Endpoint (Optional, defaults to OpenAI)";
+    if (provider === "local") return "Endpoint (Required, loopback only)";
+    return "Endpoint (Required)";
+}
+
+function getProviderApiKeyLabel(provider: GrammarFixerProvider) {
+    return provider === "gemini" ? "Provider API Key (Required)" : "Provider API Key (Required for OpenAI, optional for compatible endpoints)";
+}
+
+function getModelListRequest(): GrammarFixerModelListRequest {
+    return {
+        provider: settings.store.provider as GrammarFixerProvider,
+        endpoint: settings.store.endpoint,
+        apiKey: usesProviderApiKey() ? settings.store.apiKey : undefined
+    };
+}
+
+function SettingsTextInput({ title, note, value, setValue, placeholder, type = "text" }: { title: string; note: string; value: string; setValue(value: string): void; placeholder: string; type?: string; }) {
+    return (
+        <>
+            <Forms.FormTitle tag="h4">{title}</Forms.FormTitle>
+            <Forms.FormText>{note}</Forms.FormText>
+            <TextInput type={type} value={value} onChange={setValue} placeholder={placeholder} />
+        </>
+    );
+}
+
+function ModelSetting({ setValue }: { setValue(value: string): void; }) {
+    const { provider, model, endpoint } = settings.use(["provider", "model", "endpoint"]);
+    const [models, setModels] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const canFetch = provider !== "custom" && !IS_WEB;
+
+    async function fetchModels() {
+        if (!canFetch || isLoading) return;
+
+        setIsLoading(true);
+        try {
+            const response = await Native.listGrammarFixerModels(getModelListRequest());
+            if (!response.ok) throw new Error(response.error || "Could not fetch models");
+
+            setModels(response.models ?? []);
+            Toasts.show({ id: Toasts.genId(), message: `Fetched ${response.models?.length ?? 0} models.`, type: Toasts.Type.SUCCESS });
+        } catch (error) {
+            Toasts.show({ id: Toasts.genId(), message: error instanceof Error ? error.message : "Could not fetch models", type: Toasts.Type.FAILURE });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <SettingsTextInput title="Model (Required)" note="Enter a model manually or fetch available models for Gemini, OpenAI-compatible, and Local providers." value={model} setValue={setValue} placeholder="Model name" />
+            <Button disabled={!canFetch || isLoading || (provider === "local" && !endpoint.trim())} onClick={fetchModels}>{isLoading ? "Fetching..." : "Fetch models"}</Button>
+            {provider === "custom" && <Forms.FormText>Custom model list is manual.</Forms.FormText>}
+            {provider === "local" && !endpoint.trim() && <Forms.FormText>Set a required loopback endpoint before fetching local models.</Forms.FormText>}
+            {models.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {models.map(modelId => <Button key={modelId} size="sm" onClick={() => setValue(modelId)}>{modelId}</Button>)}
+                </div>
+            )}
+        </div>
+    );
+}
 
 const settings = definePluginSettings({
     provider: {
@@ -45,29 +127,29 @@ const settings = definePluginSettings({
         ]
     },
     model: {
-        type: OptionType.STRING,
-        description: "Model name sent to the provider",
-        default: "gemini-1.5-flash"
+        type: OptionType.COMPONENT,
+        default: "gemini-1.5-flash",
+        component: ModelSetting
     },
     apiKey: {
         type: OptionType.COMPONENT,
         default: "",
+        hidden: () => !usesProviderApiKey(),
         component: ({ setValue }) => {
-            const { apiKey } = settings.use(["apiKey"]);
+            const { apiKey, provider } = settings.use(["apiKey", "provider"]);
 
-            return (
-                <>
-                    <Forms.FormTitle tag="h4">Provider API Key</Forms.FormTitle>
-                    <Forms.FormText>Masked visually, but stored as plaintext in Vencord settings.</Forms.FormText>
-                    <TextInput type="password" value={apiKey} onChange={setValue} placeholder="Provider API key" />
-                </>
-            );
+            return <SettingsTextInput title={getProviderApiKeyLabel(provider as GrammarFixerProvider)} note="Masked visually, but stored as plaintext in Vencord settings." value={apiKey} setValue={setValue} placeholder="Provider API key" type="password" />;
         }
     },
     endpoint: {
-        type: OptionType.STRING,
-        description: "OpenAI-compatible, Local, or Custom endpoint. Remote providers require HTTPS; Local HTTP is loopback-only.",
-        default: ""
+        type: OptionType.COMPONENT,
+        default: "",
+        hidden: () => !usesEndpoint(),
+        component: ({ setValue }) => {
+            const { endpoint, provider } = settings.use(["endpoint", "provider"]);
+
+            return <SettingsTextInput title={getEndpointLabel(provider as GrammarFixerProvider)} note="Remote endpoints require HTTPS and no URL credentials. Local endpoints must be loopback only." value={endpoint} setValue={setValue} placeholder={provider === "openai" ? "https://api.openai.com/v1/chat/completions" : "Provider endpoint"} />;
+        }
     },
     customAuthKind: {
         type: OptionType.SELECT,
@@ -76,27 +158,24 @@ const settings = definePluginSettings({
             { label: "None", value: "none", default: true },
             { label: "Bearer", value: "bearer" },
             { label: "X-API-Key", value: "apiKey" }
-        ]
+        ],
+        hidden: () => !isCustomProvider()
     },
     customApiKey: {
         type: OptionType.COMPONENT,
         default: "",
+        hidden: () => !usesCustomApiKey(),
         component: ({ setValue }) => {
-            const { customApiKey } = settings.use(["customApiKey"]);
+            const { customApiKey, customAuthKind } = settings.use(["customApiKey", "customAuthKind"]);
 
-            return (
-                <>
-                    <Forms.FormTitle tag="h4">Custom Provider API Key</Forms.FormTitle>
-                    <Forms.FormText>Masked visually, but stored as plaintext in Vencord settings.</Forms.FormText>
-                    <TextInput type="password" value={customApiKey} onChange={setValue} placeholder="Custom provider API key" />
-                </>
-            );
+            return <SettingsTextInput title={`Custom Provider API Key (${customAuthKind === "none" ? "Optional" : "Required"})`} note="Masked visually, but stored as plaintext in Vencord settings." value={customApiKey} setValue={setValue} placeholder="Custom provider API key" type="password" />;
         }
     },
     customResponseTextPath: {
         type: OptionType.STRING,
-        description: "Dot path to response text for Custom JSON POST",
-        default: "text"
+        description: "Dot path to response text for Custom JSON POST (Required)",
+        default: "text",
+        hidden: () => !isCustomProvider()
     }
 });
 
@@ -215,7 +294,7 @@ export default definePlugin({
 
     settingsAboutComponent: () => (
         <Forms.FormText>
-            API keys are stored plaintext in Vencord settings. Text shown in GrammarFixer modals is sent to your configured provider only after you explicitly click the modal action button. Discord mentions and internal IDs are redacted before sending.
+            API keys are stored plaintext in Vencord settings. Drafts and messages are sent to your configured provider only after you explicitly click the chat-bar button, message action, or modal action button. Discord mentions and internal IDs are redacted before sending.
         </Forms.FormText>
     ),
 

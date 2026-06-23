@@ -44,3 +44,16 @@ export interface GrammarFixerNativeResponse {
     error?: string;
     status?: number;
 }
+
+export interface GrammarFixerModelListRequest {
+    provider: GrammarFixerProvider;
+    endpoint?: string;
+    apiKey?: string;
+}
+
+export interface GrammarFixerModelListResponse {
+    ok: boolean;
+    models?: string[];
+    error?: string;
+    status?: number;
+}

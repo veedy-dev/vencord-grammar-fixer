@@ -6,7 +6,7 @@
 
 import { IpcMainInvokeEvent } from "electron";
 
-import { GRAMMAR_FIXER_TIMEOUT_MS, GrammarFixerAuthKind, GrammarFixerNativeRequest, GrammarFixerNativeResponse, GrammarFixerPromptKind, GrammarFixerProvider, MAX_GRAMMAR_FIXER_API_KEY_LENGTH, MAX_GRAMMAR_FIXER_ENDPOINT_LENGTH, MAX_GRAMMAR_FIXER_MODEL_LENGTH, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH, MAX_GRAMMAR_FIXER_RESPONSE_PATH_LENGTH, MAX_GRAMMAR_FIXER_TEXT_LENGTH } from "./types";
+import { GRAMMAR_FIXER_TIMEOUT_MS, GrammarFixerAuthKind, GrammarFixerModelListRequest, GrammarFixerModelListResponse, GrammarFixerNativeRequest, GrammarFixerNativeResponse, GrammarFixerPromptKind, GrammarFixerProvider, MAX_GRAMMAR_FIXER_API_KEY_LENGTH, MAX_GRAMMAR_FIXER_ENDPOINT_LENGTH, MAX_GRAMMAR_FIXER_MODEL_LENGTH, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH, MAX_GRAMMAR_FIXER_RESPONSE_PATH_LENGTH, MAX_GRAMMAR_FIXER_TEXT_LENGTH } from "./types";
 
 const defaultEndpoints = {
     gemini: "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
@@ -101,6 +101,7 @@ function validateRequest(request: GrammarFixerNativeRequest) {
         if (!auth || typeof auth !== "object") throw new Error("Invalid request");
         const authKind = requireEnum<GrammarFixerAuthKind>(auth.kind, ["none", "bearer", "apiKey"]);
         const authApiKey = auth.apiKey === undefined ? undefined : requireString(auth.apiKey, MAX_GRAMMAR_FIXER_API_KEY_LENGTH);
+        if (authKind !== "none" && !authApiKey) throw new Error("Invalid request");
         return {
             ...request,
             provider,
@@ -108,16 +109,16 @@ function validateRequest(request: GrammarFixerNativeRequest) {
             model,
             text,
             endpoint,
-            apiKey,
+            apiKey: undefined,
             custom: {
                 endpoint: requireString(custom.endpoint, MAX_GRAMMAR_FIXER_ENDPOINT_LENGTH),
                 responseTextPath: requireString(custom.responseTextPath, MAX_GRAMMAR_FIXER_RESPONSE_PATH_LENGTH, false),
-                auth: { kind: authKind, apiKey: authApiKey }
+                auth: { kind: authKind, apiKey: authKind === "none" ? undefined : authApiKey }
             }
         };
     }
 
-    return { ...request, provider, promptKind, model, text, endpoint, apiKey, custom: undefined };
+    return { ...request, provider, promptKind, model, text, endpoint, apiKey: provider === "gemini" || provider === "openai" ? apiKey : undefined, custom: undefined };
 }
 
 function buildRequest(request: GrammarFixerNativeRequest) {
@@ -134,7 +135,7 @@ function buildRequest(request: GrammarFixerNativeRequest) {
         const endpoint = request.provider === "local" ? request.endpoint || "" : request.endpoint || defaultEndpoints.openai;
         const url = validateEndpoint(request.provider, endpoint);
         const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (request.apiKey) headers.Authorization = `Bearer ${request.apiKey}`;
+        if (request.provider === "openai" && request.apiKey) headers.Authorization = `Bearer ${request.apiKey}`;
         return { url, body: { model: request.model, messages: [{ role: "user", content: request.text }] }, headers, responsePath: "choices.0.message.content" };
     }
 
@@ -145,6 +146,50 @@ function buildRequest(request: GrammarFixerNativeRequest) {
     if (custom.auth.kind === "bearer" && custom.auth.apiKey) headers.Authorization = `Bearer ${custom.auth.apiKey}`;
     if (custom.auth.kind === "apiKey" && custom.auth.apiKey) headers["X-API-Key"] = custom.auth.apiKey;
     return { url, body: { model: request.model, promptKind: request.promptKind, text: request.text }, headers, responsePath: custom.responseTextPath };
+}
+
+function deriveModelsEndpoint(provider: GrammarFixerProvider, endpoint?: string) {
+    if (provider === "gemini") return validateEndpoint(provider, "https://generativelanguage.googleapis.com/v1beta/models");
+    if (provider === "custom") throw new Error("Model listing is not supported for Custom providers");
+
+    const source = provider === "openai" ? endpoint || "https://api.openai.com/v1/models" : endpoint || "";
+    const url = validateEndpoint(provider, source);
+    const path = url.pathname.replace(/\/+$/, "");
+
+    if (path.endsWith("/chat/completions")) url.pathname = `${path.slice(0, -"/chat/completions".length)}/models`;
+    else if (path.endsWith("/v1")) url.pathname = `${path}/models`;
+    else if (!path.endsWith("/models")) url.pathname = `${path}/models`;
+
+    url.search = "";
+    url.hash = "";
+    return url;
+}
+
+function validateModelListRequest(request: GrammarFixerModelListRequest) {
+    if (!request || typeof request !== "object") throw new Error("Invalid request");
+    const provider = requireEnum<GrammarFixerProvider>(request.provider, ["gemini", "openai", "local", "custom"]);
+    const apiKey = provider === "gemini" || provider === "openai"
+        ? request.apiKey === undefined ? undefined : requireString(request.apiKey, MAX_GRAMMAR_FIXER_API_KEY_LENGTH)
+        : undefined;
+
+    return {
+        provider,
+        endpoint: request.endpoint === undefined ? undefined : requireString(request.endpoint, MAX_GRAMMAR_FIXER_ENDPOINT_LENGTH),
+        apiKey
+    };
+}
+
+function normalizeModelList(provider: GrammarFixerProvider, json: unknown) {
+    const values = provider === "openai" || provider === "local"
+        ? (json as { data?: Array<{ id?: unknown; }>; }).data?.map(model => model.id)
+        : (json as { models?: Array<{ name?: unknown; supportedGenerationMethods?: unknown; supportedActions?: unknown; }>; }).models
+            ?.filter(model => {
+                const methods = Array.isArray(model.supportedGenerationMethods) ? model.supportedGenerationMethods : model.supportedActions;
+                return !Array.isArray(methods) || methods.includes("generateContent");
+            })
+            .map(model => typeof model.name === "string" ? model.name.replace(/^models\//, "") : undefined);
+
+    return Array.from(new Set((values ?? []).filter((model): model is string => typeof model === "string" && !!model.trim()).map(model => model.trim()))).sort();
 }
 
 export async function makeGrammarFixerRequest(_: IpcMainInvokeEvent, request: GrammarFixerNativeRequest): Promise<GrammarFixerNativeResponse> {
@@ -169,6 +214,32 @@ export async function makeGrammarFixerRequest(_: IpcMainInvokeEvent, request: Gr
 
         return { ok: response.ok, status: response.status, text: text.slice(0, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH), error: response.ok ? undefined : "Provider returned an error" };
     } catch (error) {
+        return { ok: false, error: sanitizeError(error) };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+export async function listGrammarFixerModels(_: IpcMainInvokeEvent, request: GrammarFixerModelListRequest): Promise<GrammarFixerModelListResponse> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GRAMMAR_FIXER_TIMEOUT_MS);
+
+    try {
+        const validRequest = validateModelListRequest(request);
+        if (validRequest.provider === "custom") return { ok: false, error: "Model listing is not supported for Custom providers" };
+
+        const url = deriveModelsEndpoint(validRequest.provider, validRequest.endpoint);
+        const headers: Record<string, string> = {};
+        if (validRequest.provider === "gemini" && validRequest.apiKey) headers["X-goog-api-key"] = validRequest.apiKey;
+        if (validRequest.provider === "openai" && validRequest.apiKey) headers.Authorization = `Bearer ${validRequest.apiKey}`;
+
+        const response = await fetch(url, { method: "GET", headers, redirect: "error", signal: controller.signal });
+        const data = await readLimitedResponse(response);
+        const models = normalizeModelList(validRequest.provider, JSON.parse(data));
+
+        return { ok: response.ok, status: response.status, models, error: response.ok ? undefined : "Provider returned an error" };
+    } catch (error) {
+        if (error instanceof Error && error.message === "Model listing is not supported for Custom providers") return { ok: false, error: error.message };
         return { ok: false, error: sanitizeError(error) };
     } finally {
         clearTimeout(timeout);
