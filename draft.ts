@@ -13,7 +13,8 @@ const { DraftManager } = proxyLazyWebpack(() => {
 });
 
 export function saveChannelDraft(channelId: string, text: string) {
-    DraftManager.saveDraft(channelId, DraftType.ChannelMessage, text);
+    DraftManager.clearDraft(channelId, DraftType.ChannelMessage);
+    requestAnimationFrame(() => DraftManager.saveDraft(channelId, text, DraftType.ChannelMessage));
 }
 
 export function joinDraftText(currentDraft: string, addition: string) {
