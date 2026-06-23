@@ -141,7 +141,7 @@ const settings = definePluginSettings({
         component: ({ setValue }) => {
             const { apiKey, provider } = settings.use(["apiKey", "provider"]);
 
-            return <SettingsTextInput title={getProviderApiKeyLabel(provider as GrammarFixerProvider)} note="Masked visually, but stored as plaintext in Vencord settings." value={apiKey} setValue={setValue} placeholder="Provider API key" type="password" />;
+            return <SettingsTextInput title={getProviderApiKeyLabel(provider as GrammarFixerProvider)} note="The secret API key from your AI provider, used to authenticate your requests. Stored locally in your Vencord settings on this device." value={apiKey} setValue={setValue} placeholder="Provider API key" type="password" />;
         }
     },
     endpoint: {
@@ -171,7 +171,7 @@ const settings = definePluginSettings({
         component: ({ setValue }) => {
             const { customApiKey, customAuthKind } = settings.use(["customApiKey", "customAuthKind"]);
 
-            return <SettingsTextInput title={`Custom Provider API Key (${customAuthKind === "none" ? "Optional" : "Required"})`} note="Masked visually, but stored as plaintext in Vencord settings." value={customApiKey} setValue={setValue} placeholder="Custom provider API key" type="password" />;
+            return <SettingsTextInput title={`Custom Provider API Key (${customAuthKind === "none" ? "Optional" : "Required"})`} note="The secret API key for your custom provider, sent as the auth header you selected above. Stored locally in your Vencord settings on this device." value={customApiKey} setValue={setValue} placeholder="Custom provider API key" type="password" />;
         }
     },
     customResponseTextPath: {
