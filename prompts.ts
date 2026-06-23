@@ -9,7 +9,7 @@ import { GrammarFixerPromptKind, GrammarFixerWritingStyle, MAX_GRAMMAR_FIXER_RES
 const instructions: Record<GrammarFixerPromptKind, string> = {
     fix: "Fix grammar, spelling, punctuation, and clarity while preserving the user's meaning and tone. Return only the corrected text.",
     rewrite: "Rewrite the text to be clearer and more natural while preserving meaning. Return only the rewritten text.",
-    reply: "Draft a concise reply using the provided message as context. Return only the reply text."
+    reply: "Write a short, natural reply to the message below on the user's behalf. Return only the reply text."
 };
 
 const styleInstructions: Record<GrammarFixerWritingStyle, string> = {
@@ -21,6 +21,8 @@ const styleInstructions: Record<GrammarFixerWritingStyle, string> = {
 };
 
 const naturalPunctuationInstruction = "Avoid AI-looking punctuation. Do not use em dashes or semicolons. Prefer commas, periods, or short separate sentences.";
+
+const replyWithDraftInstruction = "The user is replying to the message below and has already started a draft reply. Build the reply from that draft: keep the user's intent, stance, and meaning, and just make it clear and natural. Do not flip the user's position or add claims they did not make. Return only the reply text.";
 
 export function clampPromptText(text: string) {
     return text.slice(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH);
@@ -46,18 +48,21 @@ export function sanitizePromptText(text: string) {
 export function buildGrammarFixerPrompt(kind: GrammarFixerPromptKind, text: string, context?: string, style: GrammarFixerWritingStyle = "closest") {
     const sanitizedText = sanitizePromptText(text);
     const sanitizedContext = context ? sanitizePromptText(context) : "";
-    const instruction = `${instructions[kind]}\n${styleInstructions[style] ?? styleInstructions.closest}\n${naturalPunctuationInstruction}`;
-    const textPrefix = `${instruction}\n\nText:\n`;
-    const textBudget = Math.max(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH - textPrefix.length);
-    const safeText = sanitizedText.slice(0, textBudget);
-    const contextPrefix = `${instruction}\n\nContext:\n`;
-    const contextSuffix = `\n\nText:\n${safeText}`;
-    const contextBudget = Math.max(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH - contextPrefix.length - contextSuffix.length);
-    const safeContext = sanitizedContext ? sanitizedContext.slice(0, contextBudget) : "";
+    const isReply = kind === "reply";
+    const baseInstruction = isReply && sanitizedContext ? replyWithDraftInstruction : instructions[kind];
+    const instruction = `${baseInstruction}\n${styleInstructions[style] ?? styleInstructions.closest}\n${naturalPunctuationInstruction}`;
+    const primaryLabel = isReply ? "Message you are replying to:" : "Text:";
+    const contextLabel = isReply ? "Your draft reply:" : "Context:";
 
-    const prompt = safeContext
-        ? `${contextPrefix}${safeContext}${contextSuffix}`
-        : `${textPrefix}${safeText}`;
+    const primaryPrefix = `${instruction}\n\n${primaryLabel}\n`;
+    const primaryBudget = Math.max(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH - primaryPrefix.length);
+    const safeText = sanitizedText.slice(0, primaryBudget);
 
-    return clampPromptText(prompt);
+    if (!sanitizedContext) return clampPromptText(`${primaryPrefix}${safeText}`);
+
+    const contextSuffix = `\n\n${contextLabel}\n`;
+    const contextBudget = Math.max(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH - primaryPrefix.length - safeText.length - contextSuffix.length);
+    const safeContext = sanitizedContext.slice(0, contextBudget);
+
+    return clampPromptText(`${primaryPrefix}${safeText}${contextSuffix}${safeContext}`);
 }
