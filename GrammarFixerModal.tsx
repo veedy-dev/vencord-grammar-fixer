@@ -5,15 +5,23 @@
  */
 
 import { copyWithToast } from "@utils/discord";
-import { Button, ConfirmModal, DraftStore, DraftType, Modal, openModal, TextArea, Toasts, useState } from "@webpack/common";
+import { Button, ConfirmModal, DraftStore, DraftType, Forms, Modal, openModal, SearchableSelect, TextArea, Toasts, useState } from "@webpack/common";
 
 import { saveChannelDraft } from "./draft";
-import type { GrammarFixerPromptKind } from "./types";
+import type { GrammarFixerPromptKind, GrammarFixerWritingStyle } from "./types";
+
+interface GrammarFixerWritingStyleOption {
+    label: string;
+    value: GrammarFixerWritingStyle;
+}
 
 interface GrammarFixerModalProps {
     modalProps: any;
     channelId: string;
     initialDraft: string;
+    writingStyle: GrammarFixerWritingStyle;
+    writingStyleOptions: GrammarFixerWritingStyleOption[];
+    onWritingStyleChange(writingStyle: GrammarFixerWritingStyle): void;
     requestGrammarFix(text: string, context?: string, promptKind?: GrammarFixerPromptKind): Promise<string | null>;
 }
 
@@ -35,21 +43,30 @@ function showReplaceConfirmation(channelId: string, replacement: string, onClose
     ));
 }
 
-export function openGrammarFixerModal(channelId: string, initialDraft: string, requestGrammarFix: GrammarFixerModalProps["requestGrammarFix"]) {
+export function openGrammarFixerModal(channelId: string, initialDraft: string, writingStyle: GrammarFixerWritingStyle, writingStyleOptions: GrammarFixerWritingStyleOption[], onWritingStyleChange: GrammarFixerModalProps["onWritingStyleChange"], requestGrammarFix: GrammarFixerModalProps["requestGrammarFix"]) {
     openModal(modalProps => (
         <GrammarFixerModal
             modalProps={modalProps}
             channelId={channelId}
             initialDraft={initialDraft}
+            writingStyle={writingStyle}
+            writingStyleOptions={writingStyleOptions}
+            onWritingStyleChange={onWritingStyleChange}
             requestGrammarFix={requestGrammarFix}
         />
     ));
 }
 
-function GrammarFixerModal({ modalProps, channelId, initialDraft, requestGrammarFix }: GrammarFixerModalProps) {
+function GrammarFixerModal({ modalProps, channelId, initialDraft, writingStyle, writingStyleOptions, onWritingStyleChange, requestGrammarFix }: GrammarFixerModalProps) {
     const [sourceText, setSourceText] = useState(initialDraft);
     const [resultText, setResultText] = useState("");
+    const [selectedWritingStyle, setSelectedWritingStyle] = useState(writingStyle);
     const [isLoading, setIsLoading] = useState(false);
+
+    function changeWritingStyle(nextWritingStyle: GrammarFixerWritingStyle) {
+        setSelectedWritingStyle(nextWritingStyle);
+        onWritingStyleChange(nextWritingStyle);
+    }
 
     async function fixGrammar() {
         if (isLoading || !sourceText.trim()) return;
@@ -99,6 +116,17 @@ function GrammarFixerModal({ modalProps, channelId, initialDraft, requestGrammar
             ]}
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <section>
+                    <Forms.FormTitle tag="h4">Writing Style</Forms.FormTitle>
+                    <SearchableSelect
+                        options={writingStyleOptions}
+                        value={selectedWritingStyle}
+                        placeholder="Select a writing style"
+                        closeOnSelect={true}
+                        onChange={changeWritingStyle}
+                    />
+                </section>
+
                 <section>
                     <div style={{ marginBottom: 8, fontWeight: 600 }}>Draft to fix</div>
                     <TextArea value={sourceText} onChange={setSourceText} autosize disabled={isLoading} />

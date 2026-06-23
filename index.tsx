@@ -9,13 +9,12 @@ import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/Co
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType, PluginNative } from "@utils/types";
-import { Button, ChannelStore, ConfirmModal, DraftStore, DraftType, Forms, Menu, openModal, TextInput, Toasts, useState, useStateFromStores } from "@webpack/common";
+import { Button, ChannelStore, DraftStore, DraftType, Forms, Menu, TextInput, Toasts, useState, useStateFromStores } from "@webpack/common";
 
-import { saveChannelDraft } from "./draft";
 import { openGrammarFixerModal } from "./GrammarFixerModal";
 import { buildGrammarFixerRequest, type GrammarFixerProviderSettings, normalizeGrammarFixerResponse } from "./providers";
 import { openReplySuggestionModal } from "./ReplySuggestionModal";
-import type { GrammarFixerModelListRequest, GrammarFixerPromptKind, GrammarFixerProvider } from "./types";
+import type { GrammarFixerModelListRequest, GrammarFixerPromptKind, GrammarFixerProvider, GrammarFixerWritingStyle } from "./types";
 
 const Native = VencordNative.pluginHelpers.GrammarFixer as PluginNative<typeof import("./native")>;
 
@@ -205,44 +204,17 @@ function GrammarFixerIcon({ width = 20, height = 20, ...props }: Record<string, 
     return <svg {...props} width={width} height={height} viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v2H4V4Zm0 4h10v2H4V8Zm0 4h16v2H4v-2Zm0 4h10v2H4v-2Zm13.7-6.3 1.4 1.4-4.6 4.6-2.1-2.1 1.4-1.4.7.7 3.2-3.2Z" /></svg>;
 }
 
-function replaceDraft(channelId: string, replacement: string) {
-    saveChannelDraft(channelId, replacement);
-    Toasts.show({ id: Toasts.genId(), message: "Draft replaced.", type: Toasts.Type.SUCCESS });
-}
+const writingStyleOptions = settings.def.writingStyle.options.map(({ label, value }) => ({ label, value: value as GrammarFixerWritingStyle }));
 
-function showDirectReplaceConfirmation(channelId: string, replacement: string) {
-    openModal(props => (
-        <ConfirmModal
-            {...props}
-            title="Replace changed draft?"
-            subtitle="Your draft changed while GrammarFixer was running. Replace the current draft with the fixed result?"
-            confirmText="Replace Draft"
-            cancelText="Keep Current Draft"
-            variant="primary"
-            onConfirm={() => replaceDraft(channelId, replacement)}
-        />
-    ));
-}
-
-async function directFixDraft(channelId: string, initialDraft: string) {
-    if (IS_WEB || !initialDraft.trim()) return;
-
-    Toasts.show({ id: Toasts.genId(), message: "GrammarFixer is fixing your draft...", type: Toasts.Type.MESSAGE });
-
-    try {
-        const fixed = await requestGrammarFix(initialDraft, undefined, "fix");
-        if (!fixed) return;
-
-        const currentDraft = DraftStore.getDraft(channelId, DraftType.ChannelMessage) ?? "";
-        if (currentDraft === initialDraft) {
-            replaceDraft(channelId, fixed);
-            return;
-        }
-
-        showDirectReplaceConfirmation(channelId, fixed);
-    } catch (error) {
-        Toasts.show({ id: Toasts.genId(), message: error instanceof Error ? error.message : "GrammarFixer failed", type: Toasts.Type.FAILURE });
-    }
+function openDraftReviewModal(channelId: string, draft: string) {
+    openGrammarFixerModal(
+        channelId,
+        draft,
+        settings.store.writingStyle as GrammarFixerWritingStyle,
+        writingStyleOptions,
+        writingStyle => settings.store.writingStyle = writingStyle,
+        requestGrammarFix
+    );
 }
 
 const GrammarFixerChatBarButton: ChatBarButtonFactory = ({ isAnyChat, channel: { id: channelId }, isEmpty }) => {
@@ -252,11 +224,11 @@ const GrammarFixerChatBarButton: ChatBarButtonFactory = ({ isAnyChat, channel: {
 
     return (
         <ChatBarButton
-            tooltip="Fix Grammar (right-click for review)"
-            onClick={() => void directFixDraft(channelId, draft)}
+            tooltip="Fix Grammar"
+            onClick={() => openDraftReviewModal(channelId, draft)}
             onContextMenu={event => {
                 event.preventDefault();
-                openGrammarFixerModal(channelId, draft, requestGrammarFix);
+                openDraftReviewModal(channelId, draft);
             }}
             buttonProps={{
                 "aria-haspopup": "dialog"
@@ -294,7 +266,7 @@ export default definePlugin({
 
     settingsAboutComponent: () => (
         <Forms.FormText>
-            API keys are stored plaintext in Vencord settings. Drafts and messages are sent to your configured provider only after you explicitly click the chat-bar button, message action, or modal action button. Discord mentions and internal IDs are redacted before sending.
+            API keys are stored plaintext in Vencord settings. Drafts and messages are sent to your configured provider only after you explicitly click a modal action button. Discord mentions and internal IDs are redacted before sending.
         </Forms.FormText>
     ),
 
