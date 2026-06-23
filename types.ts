@@ -15,6 +15,7 @@ export const GRAMMAR_FIXER_TIMEOUT_MS = 30000;
 export type GrammarFixerProvider = "gemini" | "openai" | "local" | "custom";
 export type GrammarFixerPromptKind = "fix" | "rewrite" | "reply";
 export type GrammarFixerAuthKind = "none" | "bearer" | "apiKey";
+export type GrammarFixerWritingStyle = "closest" | "clean" | "casual" | "punchy" | "formal";
 
 export interface GrammarFixerAuthConfig {
     kind: GrammarFixerAuthKind;

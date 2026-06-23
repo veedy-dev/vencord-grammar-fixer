@@ -9,7 +9,7 @@ import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/Co
 import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType, PluginNative } from "@utils/types";
-import { ChannelStore, DraftStore, DraftType, Forms, Menu, Toasts, useStateFromStores } from "@webpack/common";
+import { ChannelStore, DraftStore, DraftType, Forms, Menu, TextInput, Toasts, useStateFromStores } from "@webpack/common";
 
 import { openGrammarFixerModal } from "./GrammarFixerModal";
 import { buildGrammarFixerRequest, type GrammarFixerProviderSettings, normalizeGrammarFixerResponse } from "./providers";
@@ -32,15 +32,36 @@ const settings = definePluginSettings({
             { label: "Custom JSON POST", value: "custom" }
         ]
     },
+    writingStyle: {
+        type: OptionType.SELECT,
+        description: "Writing style for grammar fixes and reply suggestions",
+        options: [
+            { label: "Closest to Original", value: "closest", default: true },
+            { label: "Clean & Natural", value: "clean" },
+            { label: "Casual & Friendly", value: "casual" },
+            { label: "Punchy & Direct", value: "punchy" },
+            { label: "Formal", value: "formal" }
+        ]
+    },
     model: {
         type: OptionType.STRING,
         description: "Model name sent to the provider",
         default: "gemini-1.5-flash"
     },
     apiKey: {
-        type: OptionType.STRING,
-        description: "Provider API key stored as plaintext in Vencord settings",
-        default: ""
+        type: OptionType.COMPONENT,
+        default: "",
+        component: ({ setValue }) => {
+            const { apiKey } = settings.use(["apiKey"]);
+
+            return (
+                <>
+                    <Forms.FormTitle tag="h4">Provider API Key</Forms.FormTitle>
+                    <Forms.FormText>Masked visually, but stored as plaintext in Vencord settings.</Forms.FormText>
+                    <TextInput type="password" value={apiKey} onChange={setValue} placeholder="Provider API key" />
+                </>
+            );
+        }
     },
     endpoint: {
         type: OptionType.STRING,
@@ -57,9 +78,19 @@ const settings = definePluginSettings({
         ]
     },
     customApiKey: {
-        type: OptionType.STRING,
-        description: "Custom provider API key stored as plaintext in Vencord settings",
-        default: ""
+        type: OptionType.COMPONENT,
+        default: "",
+        component: ({ setValue }) => {
+            const { customApiKey } = settings.use(["customApiKey"]);
+
+            return (
+                <>
+                    <Forms.FormTitle tag="h4">Custom Provider API Key</Forms.FormTitle>
+                    <Forms.FormText>Masked visually, but stored as plaintext in Vencord settings.</Forms.FormText>
+                    <TextInput type="password" value={customApiKey} onChange={setValue} placeholder="Custom provider API key" />
+                </>
+            );
+        }
     },
     customResponseTextPath: {
         type: OptionType.STRING,
@@ -90,8 +121,8 @@ function getMessageContent(message: any) {
     return message.content?.trim() ?? "";
 }
 
-function GrammarFixerIcon(props: Record<string, any>) {
-    return <svg {...props} viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v2H4V4Zm0 4h10v2H4V8Zm0 4h16v2H4v-2Zm0 4h10v2H4v-2Zm13.7-6.3 1.4 1.4-4.6 4.6-2.1-2.1 1.4-1.4.7.7 3.2-3.2Z" /></svg>;
+function GrammarFixerIcon({ width = 20, height = 20, ...props }: Record<string, any>) {
+    return <svg {...props} width={width} height={height} viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v2H4V4Zm0 4h10v2H4V8Zm0 4h16v2H4v-2Zm0 4h10v2H4v-2Zm13.7-6.3 1.4 1.4-4.6 4.6-2.1-2.1 1.4-1.4.7.7 3.2-3.2Z" /></svg>;
 }
 
 const GrammarFixerChatBarButton: ChatBarButtonFactory = ({ isAnyChat, channel: { id: channelId }, isEmpty }) => {

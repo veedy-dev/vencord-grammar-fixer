@@ -4,12 +4,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { GrammarFixerPromptKind, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH, MAX_GRAMMAR_FIXER_TEXT_LENGTH } from "./types";
+import { GrammarFixerPromptKind, GrammarFixerWritingStyle, MAX_GRAMMAR_FIXER_RESPONSE_LENGTH, MAX_GRAMMAR_FIXER_TEXT_LENGTH } from "./types";
 
 const instructions: Record<GrammarFixerPromptKind, string> = {
     fix: "Fix grammar, spelling, punctuation, and clarity while preserving the user's meaning and tone. Return only the corrected text.",
     rewrite: "Rewrite the text to be clearer and more natural while preserving meaning. Return only the rewritten text.",
     reply: "Draft a concise reply using the provided message as context. Return only the reply text."
+};
+
+const styleInstructions: Record<GrammarFixerWritingStyle, string> = {
+    closest: "Style: Stay as close as possible to the original wording, tone, and level of formality.",
+    clean: "Style: Make the text clean, natural, and easy to read without changing the intended tone.",
+    casual: "Style: Use a casual, friendly tone while keeping the message clear.",
+    punchy: "Style: Be punchy, direct, and concise.",
+    formal: "Style: Use a polished, formal tone."
 };
 
 export function clampPromptText(text: string) {
@@ -30,13 +38,14 @@ export function sanitizePromptText(text: string) {
         .replace(/\b\d{17,20}\b/g, "[id]");
 }
 
-export function buildGrammarFixerPrompt(kind: GrammarFixerPromptKind, text: string, context?: string) {
+export function buildGrammarFixerPrompt(kind: GrammarFixerPromptKind, text: string, context?: string, style: GrammarFixerWritingStyle = "closest") {
     const sanitizedText = sanitizePromptText(text);
     const sanitizedContext = context ? sanitizePromptText(context) : "";
-    const textPrefix = `${instructions[kind]}\n\nText:\n`;
+    const instruction = `${instructions[kind]}\n${styleInstructions[style] ?? styleInstructions.closest}`;
+    const textPrefix = `${instruction}\n\nText:\n`;
     const textBudget = Math.max(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH - textPrefix.length);
     const safeText = sanitizedText.slice(0, textBudget);
-    const contextPrefix = `${instructions[kind]}\n\nContext:\n`;
+    const contextPrefix = `${instruction}\n\nContext:\n`;
     const contextSuffix = `\n\nText:\n${safeText}`;
     const contextBudget = Math.max(0, MAX_GRAMMAR_FIXER_TEXT_LENGTH - contextPrefix.length - contextSuffix.length);
     const safeContext = sanitizedContext ? sanitizedContext.slice(0, contextBudget) : "";

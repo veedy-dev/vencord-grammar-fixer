@@ -5,7 +5,7 @@
  */
 
 import { buildGrammarFixerPrompt, clampResponseText } from "./prompts";
-import { GrammarFixerNativeRequest, GrammarFixerNativeResponse, GrammarFixerPromptKind, GrammarFixerProvider } from "./types";
+import { GrammarFixerNativeRequest, GrammarFixerNativeResponse, GrammarFixerPromptKind, GrammarFixerProvider, GrammarFixerWritingStyle } from "./types";
 
 export interface GrammarFixerProviderSettings {
     provider: GrammarFixerProvider;
@@ -15,10 +15,11 @@ export interface GrammarFixerProviderSettings {
     customAuthKind: "none" | "bearer" | "apiKey";
     customApiKey: string;
     customResponseTextPath: string;
+    writingStyle: GrammarFixerWritingStyle;
 }
 
 export function buildGrammarFixerRequest(settings: GrammarFixerProviderSettings, promptKind: GrammarFixerPromptKind, text: string, context?: string): GrammarFixerNativeRequest {
-    const prompt = buildGrammarFixerPrompt(promptKind, text, context).trim();
+    const prompt = buildGrammarFixerPrompt(promptKind, text, context, settings.writingStyle).trim();
     const endpoint = settings.endpoint.trim();
 
     const request: GrammarFixerNativeRequest = {
