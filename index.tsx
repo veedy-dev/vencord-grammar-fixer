@@ -272,7 +272,7 @@ export default definePlugin({
                 Your key is saved only on this device, inside Vencord settings. The field is masked on screen, but it is stored as plaintext, so avoid using this on a shared or untrusted computer.
             </Forms.FormText>
             <Forms.FormText style={{ marginTop: 8 }}>
-                Your text is sent to the configured provider only when you click an action button in a GrammarFixer popup. Discord mentions and internal IDs are redacted first, and nothing is ever sent or replied automatically.
+                Your text is sent to the configured provider only when you click an action button in a GrammarFixer popup. Discord mentions and internal IDs (such as user, channel, role, and message IDs) are stripped out first, so they are never sent to the AI provider.
             </Forms.FormText>
         </>
     ),
