@@ -257,16 +257,24 @@ const messageContextMenuPatch: NavContextMenuPatchCallback = (children, { messag
 
 export default definePlugin({
     name: "GrammarFixer",
-    description: "Private desktop-only grammar fixing scaffold with strict provider boundaries.",
+    description: "Fix the grammar in your message draft and get AI reply suggestions, using your own AI provider (Gemini, OpenAI-compatible, Local, or Custom).",
     authors: [{ name: "veedy", id: 337585778140119041n }],
     tags: ["Chat", "Utility"],
     settings,
     enabledByDefault: false,
 
     settingsAboutComponent: () => (
-        <Forms.FormText>
-            API keys are stored plaintext in Vencord settings. Drafts and messages are sent to your configured provider only after you explicitly click a modal action button. Discord mentions and internal IDs are redacted before sending.
-        </Forms.FormText>
+        <>
+            <Forms.FormText>
+                GrammarFixer talks to your own AI provider, so you need an API key for the provider you pick. For Gemini, create a free key at Google AI Studio. For OpenAI-compatible providers, use that service's API key. Local providers usually need no key.
+            </Forms.FormText>
+            <Forms.FormText style={{ marginTop: 8 }}>
+                Your key is saved only on this device, inside Vencord settings. The field is masked on screen, but it is stored as plaintext, so avoid using this on a shared or untrusted computer.
+            </Forms.FormText>
+            <Forms.FormText style={{ marginTop: 8 }}>
+                Your text is sent to the configured provider only when you click an action button in a GrammarFixer popup. Discord mentions and internal IDs are redacted first, and nothing is ever sent or replied automatically.
+            </Forms.FormText>
+        </>
     ),
 
     contextMenus: {
