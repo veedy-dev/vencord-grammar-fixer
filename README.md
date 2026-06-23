@@ -18,9 +18,20 @@ Not affiliated with or endorsed by Vencord. Userplugins require a source/develop
 
 ## Install
 
-### Easy install on Windows
+Userplugins require a source/development build of Vencord. If you don't have one yet, follow Vencord's "Installing from source" guide first, then use one of the methods below.
 
-Clone this repo anywhere, then run the installer with the path to your Vencord checkout:
+### Any OS (manual)
+
+Run this from the root of your Vencord checkout:
+
+```bash
+git clone https://github.com/veedy-dev/vencord-grammar-fixer.git src/userplugins/grammarFixer
+corepack pnpm build
+```
+
+Or copy this repository's files into `src/userplugins/grammarFixer`, then run `corepack pnpm build`. Finally, enable `GrammarFixer` in Vencord settings and restart Discord.
+
+### Windows (installer script)
 
 ```powershell
 git clone https://github.com/veedy-dev/vencord-grammar-fixer.git
@@ -28,46 +39,30 @@ cd vencord-grammar-fixer
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -VencordPath "D:\Projects\Vencord"
 ```
 
-The installer copies the plugin to `src/userplugins/grammarFixer` and runs `corepack pnpm build` for you.
+The script copies the plugin into `src/userplugins/grammarFixer` and builds it for you. Add `-SkipBuild` to copy without building, or set `$env:VENCORD_DIR` instead of passing `-VencordPath`.
 
-If you only want to copy the files without rebuilding:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -VencordPath "D:\Projects\Vencord" -SkipBuild
-```
-
-You can also set `VENCORD_DIR` instead of passing `-VencordPath`:
-
-```powershell
-$env:VENCORD_DIR = "D:\Projects\Vencord"
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
-
-### Manual install
-
-From your Vencord checkout:
+### macOS and Linux (installer script)
 
 ```bash
-git clone https://github.com/veedy-dev/vencord-grammar-fixer.git src/userplugins/grammarFixer
-corepack pnpm build
+git clone https://github.com/veedy-dev/vencord-grammar-fixer.git
+cd vencord-grammar-fixer
+chmod +x install.sh
+./install.sh /path/to/Vencord
 ```
 
-Or copy this repository's files into:
-
-```text
-src/userplugins/grammarFixer
-```
-
-Then enable `GrammarFixer` in Vencord settings.
+Add `--skip-build` to copy without building, or set `VENCORD_DIR` instead of passing the path.
 
 ### Update
 
-From your cloned `vencord-grammar-fixer` folder:
+From your cloned `vencord-grammar-fixer` folder, pull the latest changes and re-run your installer:
 
-```powershell
+```bash
 git pull
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -VencordPath "D:\Projects\Vencord"
 ```
+
+- Windows: `powershell -ExecutionPolicy Bypass -File .\install.ps1 -VencordPath "D:\Projects\Vencord"`
+- macOS and Linux: `./install.sh /path/to/Vencord`
+- Manual: copy the files again, then run `corepack pnpm build`
 
 ## Settings
 

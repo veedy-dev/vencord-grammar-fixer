@@ -70,7 +70,8 @@ $files = @(
     "README.md",
     "ReplySuggestionModal.tsx",
     "types.ts",
-    "install.ps1"
+    "install.ps1",
+    "install.sh"
 )
 
 $sourcePath = (Resolve-Path -LiteralPath $source).Path.TrimEnd("\")
