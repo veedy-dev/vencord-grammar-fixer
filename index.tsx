@@ -201,7 +201,7 @@ function getMessageContent(message: any) {
 }
 
 function GrammarFixerIcon({ width = 20, height = 20, ...props }: Record<string, any>) {
-    return <svg {...props} width={width} height={height} viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v2H4V4Zm0 4h10v2H4V8Zm0 4h16v2H4v-2Zm0 4h10v2H4v-2Zm13.7-6.3 1.4 1.4-4.6 4.6-2.1-2.1 1.4-1.4.7.7 3.2-3.2Z" /></svg>;
+    return <svg {...props} width={width} height={height} viewBox="0 0 24 24"><path fill="currentColor" d="M12.45 16h2.09L9.43 3H7.57L2.46 16h2.09l1.12-3h5.64l1.14 3Zm-6.02-5L8.5 5.48 10.57 11H6.43Zm15.16.59-8.09 8.09L9.83 16l-1.41 1.41 5.09 5.09L23 13l-1.41-1.41Z" /></svg>;
 }
 
 const writingStyleOptions = settings.def.writingStyle.options.map(({ label, value }) => ({ label, value: value as GrammarFixerWritingStyle }));
