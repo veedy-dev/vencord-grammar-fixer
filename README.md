@@ -16,11 +16,38 @@ Private desktop-only Vencord userplugin for manual AI grammar fixes and reply su
 
 ## Install
 
+### Easy install on Windows
+
+Clone this repo anywhere, then run the installer with the path to your Vencord checkout:
+
+```powershell
+git clone https://github.com/veedy-dev/vencord-grammar-fixer.git
+cd vencord-grammar-fixer
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -VencordPath "D:\Projects\Vencord"
+```
+
+The installer copies the plugin to `src/userplugins/grammarFixer` and runs `corepack pnpm build` for you.
+
+If you only want to copy the files without rebuilding:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -VencordPath "D:\Projects\Vencord" -SkipBuild
+```
+
+You can also set `VENCORD_DIR` instead of passing `-VencordPath`:
+
+```powershell
+$env:VENCORD_DIR = "D:\Projects\Vencord"
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+### Manual install
+
 From your Vencord checkout:
 
 ```bash
 git clone git@github.com:veedy-dev/vencord-grammar-fixer.git src/userplugins/grammarFixer
-pnpm build
+corepack pnpm build
 ```
 
 Or copy this repository's files into:
@@ -30,6 +57,15 @@ src/userplugins/grammarFixer
 ```
 
 Then enable `GrammarFixer` in Vencord settings.
+
+### Update
+
+From your cloned `vencord-grammar-fixer` folder:
+
+```powershell
+git pull
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -VencordPath "D:\Projects\Vencord"
+```
 
 ## Settings
 
